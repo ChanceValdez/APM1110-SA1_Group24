@@ -1,0 +1,110 @@
+---
+title: "Summative Assessment 1 | Section I: Task 3"
+author:
+  - "Heinz Nicole Tan"
+  - "Chance Jayden Valdez"
+output: pdf_document
+date: "2026-10-10"
+---
+
+# Setup
+
+Each site contains the key phrase with probability $p$, independently. Let $X$ be the number of sites searched until the first success, so $X \sim \text{Geometric}(p)$ with
+
+$$P(X = k) = (1-p)^{k-1}p, \quad E[X] = \frac{1}{p}, \quad \text{Var}(X) = \frac{1-p}{p^2}.$$
+
+```{r}
+set.seed(123)
+p <- 0.6   # change this value to test other probabilities
+
+# Simulation Function
+# Number of sites searched until the key phrase is found
+search_until_found <- function(p) {
+  count <- 0
+  found <- FALSE
+  while (!found) {
+    count <- count + 1
+    # 1 = site contains the key phrase (prob p), 0 = it doesn't (prob 1-p)
+    site <- sample(c(1, 0), size = 1, prob = c(p, 1 - p))
+    if (site == 1) found <- TRUE
+  }
+  count
+}
+
+simulate_searches <- function(n = 10000, p = 0.6) {
+  X <- numeric(n)
+  for (i in 1:n) {
+    X[i] <- search_until_found(p)
+  }
+  X
+}
+
+```
+
+# Part 1: Simulated PDF, Mean and Variance
+
+```{r}
+n <- 10000
+X <- simulate_searches(n, p)
+
+pdf_sim <- table(X) / n
+bp <- barplot(pdf_sim, main = paste("Simulated PDF of X (p =", p, ")"),
+              xlab = "Number of Searches until success (x)",
+              ylab = "Relative Frequency", col = "steelblue")
+
+# Theoretical PMF computed by: P(X = k) = (1 - p)^(k - 1) * p
+k <- as.numeric(names(pdf_sim))
+points(bp, (1 - p)^(k - 1) * p, pch = 19, col = "red")
+
+cat("Simulated Mean:    ", mean(X), "\n")
+cat("Theoretical Mean:  ", 1 / p, "\n")
+cat("Simulated Variance:", var(X), "\n")
+cat("Theoretical Variance:   ", (1 - p) / p^2, "\n")
+```
+
+The simulated pdf follows the theoretical geometric pmf closely, since the red points sit on top of the bars. The simulated mean is `r round(mean(X), 3)` against the theoretical $1/p =$ `r round(1/p, 3)`, and the simulated variance is `r round(var(X), 3)` against $(1-p)/p^2 =$ `r round((1-p)/p^2, 3)`. With 10000 runs the small gaps are just sampling error.
+
+# Part 2: Conditional Distribution given X > 3
+
+```{r}
+Xc <- X[X > 3]
+Yc <- Xc - 3 # additional searches after the first 3 failures
+
+cat("\nNumber of Runs with X > 3:", length(Xc), "\n")
+
+pdf_cond <- table(Yc) / length(Yc)
+barplot(pdf_cond, main = "Conditional PDF of (X - 3 | X > 3)",
+        xlab = "Additional Searches", ylab = "Relative Frequency",
+        col = "darkorange")
+
+cat("Conditional Mean of X - 3:     ", mean(Yc), "\n")
+cat("Conditional Variance of X - 3: ", var(Yc), "\n")
+cat("Compare with Full-Set Mean:  ", mean(X), " variance:", var(X), "\n")
+
+# side by side check that the conditional pdf matches the full pdf
+cmp <- rbind(full = as.numeric(pdf_sim[1:5]),
+             conditional = as.numeric(pdf_cond[1:5]))
+colnames(cmp) <- 1:5
+print(round(cmp, 4))
+```
+
+Only `r length(Xc)` of the 10000 runs had $X > 3$, so this conditional sample is small and noisier. The conditional pdf of $X - 3$ has a similar shape to the full pdf, though its mean (`r round(mean(Yc), 3)`) and variance (`r round(var(Yc), 3)`) come out a bit lower than the full set values (`r round(mean(X), 3)` and `r round(var(X), 3)`). With only `r length(Xc)` runs, a gap this size is plausible, and theory says the conditional distribution is exactly geometric with the same $p$, so the two are equivalent.
+
+# Part 3: Memoryless Property
+
+```{r}
+pa_cond <- sum(X == 4) / sum(X > 3)
+pa_unc  <- mean(X == 1)
+cat("\n(a) P(X=4 | X>3) =", pa_cond, "   P(X=1) =", pa_unc,
+    "   Theoretical =", p, "\n")
+
+pb_cond <- sum(X == 5) / sum(X > 3)
+pb_unc  <- mean(X == 2)
+cat("(b) P(X=5 | X>3) =", pb_cond, "   P(X=2) =", pb_unc,
+    "   Theoretical =", (1 - p) * p, "\n")
+```
+
+The conditional estimates are in the right range but not exact. $P(X=4 \mid X>3) \approx$ `r round(pa_cond, 3)` against $P(X=1) \approx$ `r round(pa_unc, 3)`, and $P(X=5 \mid X>3) \approx$ `r round(pb_cond, 3)` against $P(X=2) \approx$ `r round(pb_unc, 3)`. 
+
+Algebraically, $P(X>n) = (1-p)^n$, so
+$$P(X = n+m \mid X>n) = \frac{(1-p)^{n+m-1}p}{(1-p)^n} = (1-p)^{m-1}p = P(X=m).$$
