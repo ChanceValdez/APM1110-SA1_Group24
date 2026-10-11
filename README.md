@@ -1,4 +1,4 @@
-# Summative Assessment 1 README
+# README
 
 **Authors:** Valdez, Chance Jayden and Tan, Heinz Nicole
 
